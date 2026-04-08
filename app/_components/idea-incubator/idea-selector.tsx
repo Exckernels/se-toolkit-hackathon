@@ -53,7 +53,10 @@ export function IdeaSelector({
                   : "border-zinc-700 bg-zinc-950 text-zinc-300 hover:border-zinc-500"
               }`}
             >
-              {idea.title || "Untitled idea"}
+              <span className="block font-medium">{idea.title || "Untitled idea"}</span>
+              <span className="mt-1 block text-xs opacity-70">
+                {currentIdeaId === idea.id ? "Selected idea" : "Saved idea"}
+              </span>
             </button>
           ))}
         </div>

@@ -3,9 +3,23 @@ from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.models import Idea, IdeaVersion
-from app.schemas import DeleteVersionResponse, IdeaCreate, IdeaRead, IdeaVersionRead
-from app.services import OpenRouterError, generate_structured_idea
+from app.models import Idea, IdeaChatMessage, IdeaVersion
+from app.schemas import (
+    DeleteVersionResponse,
+    IdeaChatMessageRead,
+    IdeaCreate,
+    IdeaRead,
+    IdeaRefineRequest,
+    IdeaVersionRead,
+)
+from app.services import (
+    OpenRouterError,
+    build_initial_prompt,
+    build_refinement_prompt,
+    create_chat_message,
+    create_version_record,
+    generate_structured_idea,
+)
 
 router = APIRouter(tags=["ideas"])
 
@@ -47,6 +61,20 @@ def list_idea_versions(id: int, db: Session = Depends(get_db)) -> list[IdeaVersi
     return list(result.scalars().all())
 
 
+@router.get("/ideas/{id}/messages", response_model=list[IdeaChatMessageRead])
+def list_idea_messages(id: int, db: Session = Depends(get_db)) -> list[IdeaChatMessage]:
+    idea = db.get(Idea, id)
+    if not idea:
+        raise HTTPException(status_code=404, detail="Idea not found")
+
+    result = db.execute(
+        select(IdeaChatMessage)
+        .where(IdeaChatMessage.idea_id == id)
+        .order_by(IdeaChatMessage.created_at.asc())
+    )
+    return list(result.scalars().all())
+
+
 @router.delete("/versions/{id}", response_model=DeleteVersionResponse)
 def delete_version(id: int, db: Session = Depends(get_db)) -> DeleteVersionResponse:
     version = db.get(IdeaVersion, id)
@@ -64,7 +92,7 @@ async def generate_idea_version(id: int, db: Session = Depends(get_db)) -> IdeaV
     if not idea:
         raise HTTPException(status_code=404, detail="Idea not found")
 
-    prompt = f"{idea.title}. {idea.raw_description}"
+    prompt = build_initial_prompt(idea)
 
     try:
         data = await generate_structured_idea(prompt)
@@ -79,18 +107,56 @@ async def generate_idea_version(id: int, db: Session = Depends(get_db)) -> IdeaV
             },
         ) from error
 
-    version = IdeaVersion(
-        idea_id=idea.id,
-        overview=str(data.get("overview", "")),
-        audience=str(data.get("audience", "")),
-        problem=str(data.get("problem", "")),
-        solution=str(data.get("solution", "")),
-        features_json=data.get("features", []),
-        mvp_scope=str(data.get("mvp_scope", "")),
-        risks_json=data.get("risks", []),
-        roadmap_json=data.get("roadmap", []),
+    return create_version_record(db, idea, data)
+
+
+@router.post("/ideas/{id}/refine", response_model=IdeaVersionRead, status_code=status.HTTP_201_CREATED)
+async def refine_idea_version(
+    id: int, payload: IdeaRefineRequest, db: Session = Depends(get_db)
+) -> IdeaVersion:
+    idea = db.get(Idea, id)
+    if not idea:
+        raise HTTPException(status_code=404, detail="Idea not found")
+
+    latest_version = db.execute(
+        select(IdeaVersion)
+        .where(IdeaVersion.idea_id == id)
+        .order_by(desc(IdeaVersion.created_at))
+        .limit(1)
+    ).scalar_one_or_none()
+
+    if not latest_version:
+        raise HTTPException(status_code=400, detail="Generate an initial version before refining")
+
+    recent_messages = db.execute(
+        select(IdeaChatMessage)
+        .where(IdeaChatMessage.idea_id == id)
+        .order_by(desc(IdeaChatMessage.created_at))
+        .limit(8)
+    ).scalars().all()
+    recent_messages = list(reversed(recent_messages))
+
+    prompt = build_refinement_prompt(idea, latest_version, payload.message, recent_messages)
+
+    try:
+        data = await generate_structured_idea(prompt)
+    except OpenRouterError as error:
+        raise HTTPException(status_code=500, detail=error.payload) from error
+    except Exception as error:
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "Internal server error",
+                "details": str(error),
+            },
+        ) from error
+
+    create_chat_message(db, idea.id, "user", payload.message)
+    version = create_version_record(db, idea, data)
+    create_chat_message(
+        db,
+        idea.id,
+        "assistant",
+        f"Created version {version.id} with updated MVP plan.",
     )
-    db.add(version)
-    db.commit()
-    db.refresh(version)
     return version

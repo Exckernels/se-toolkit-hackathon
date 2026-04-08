@@ -41,7 +41,12 @@ export function VersionsSidebar({
               }`}
             >
               <div className="flex items-start justify-between gap-3">
-                <p className="font-medium">Version {versions.length - index}</p>
+                <div>
+                  <p className="font-medium">Version {versions.length - index}</p>
+                  {index === 0 && (
+                    <p className="mt-1 text-xs text-emerald-400">Latest version</p>
+                  )}
+                </div>
                 <button
                   type="button"
                   onClick={(e) => {

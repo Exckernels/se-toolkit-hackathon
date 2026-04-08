@@ -2,7 +2,7 @@ from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
 from app.schemas import GenerateRequest
-from app.services import OpenRouterError, generate_structured_idea
+from app.services import OpenRouterError, generate_structured_idea, normalize_structured_output
 
 router = APIRouter(tags=["generate"])
 
@@ -11,7 +11,7 @@ router = APIRouter(tags=["generate"])
 async def generate(payload: GenerateRequest):
     try:
         parsed = await generate_structured_idea(payload.idea)
-        return JSONResponse(parsed)
+        return JSONResponse(normalize_structured_output(parsed))
     except OpenRouterError as error:
         return JSONResponse(error.payload, status_code=error.status_code)
     except Exception as error:

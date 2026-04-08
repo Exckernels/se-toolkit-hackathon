@@ -1,3 +1,3 @@
-from app.models.idea import Idea, IdeaVersion
+from app.models.idea import Idea, IdeaChatMessage, IdeaVersion
 
-__all__ = ["Idea", "IdeaVersion"]
+__all__ = ["Idea", "IdeaChatMessage", "IdeaVersion"]

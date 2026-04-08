@@ -1,21 +1,30 @@
+import { ExportActions } from "./export-actions"
 import type { StoredVersion, Tab } from "./types"
 import { FALLBACK_TEXT, renderTabText } from "./utils"
 
 type ResultPanelProps = {
   activeTab: Tab
   copyState: "idle" | "copied"
+  exportState: "idle" | "copied" | "downloaded"
   currentVersion: StoredVersion | null
   tabs: readonly Tab[]
+  onCopyFullPlan: () => void
   onCopyOverview: () => void
+  onDownloadJson: () => void
+  onDownloadText: () => void
   onTabChange: (tab: Tab) => void
 }
 
 export function ResultPanel({
   activeTab,
   copyState,
+  exportState,
   currentVersion,
   tabs,
+  onCopyFullPlan,
   onCopyOverview,
+  onDownloadJson,
+  onDownloadText,
   onTabChange
 }: ResultPanelProps) {
   return (
@@ -39,8 +48,19 @@ export function ResultPanel({
       {currentVersion ? (
         <>
           <div className="mb-3 flex items-center justify-between gap-3">
-            <p className="text-sm text-zinc-400">Latest generated version</p>
-            <div className="flex items-center gap-3">
+            <div>
+              <p className="text-sm text-zinc-400">Latest generated version</p>
+              <p className="mt-1 text-xs text-zinc-500">
+                Last updated {currentVersion.createdAt}
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <ExportActions
+                isDisabled={!currentVersion}
+                onCopyFullPlan={onCopyFullPlan}
+                onDownloadJson={onDownloadJson}
+                onDownloadText={onDownloadText}
+              />
               <button
                 onClick={onCopyOverview}
                 className="rounded-lg border border-zinc-700 px-3 py-2 text-sm text-zinc-200 hover:border-zinc-500"
@@ -49,6 +69,11 @@ export function ResultPanel({
               </button>
             </div>
           </div>
+          {exportState !== "idle" && (
+            <p className="mb-3 text-sm text-emerald-400">
+              {exportState === "copied" ? "Full plan copied." : "Export downloaded."}
+            </p>
+          )}
 
           <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-5">
             {(activeTab === "Overview" ||

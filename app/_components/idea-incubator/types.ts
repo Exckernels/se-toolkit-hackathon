@@ -51,6 +51,14 @@ export type ApiIdeaVersion = {
   created_at: string
 }
 
+export type ChatMessage = {
+  id: number
+  idea_id: number
+  role: "user" | "assistant"
+  content: string
+  created_at: string
+}
+
 export const tabs = [
   "Overview",
   "Audience",

@@ -2,10 +2,14 @@
 
 import { useEffect, useState, type Dispatch, type SetStateAction } from "react"
 
+import { apiRequest } from "@/app/lib/api"
+
+import { ChatPanel } from "./chat-panel"
 import { IdeaForm } from "./idea-form"
 import { IdeaSelector } from "./idea-selector"
 import { ResultPanel } from "./result-panel"
 import {
+  type ChatMessage,
   tabs,
   type ApiIdeaVersion,
   type IdeaRecord,
@@ -14,7 +18,6 @@ import {
 } from "./types"
 import { mapApiVersion } from "./utils"
 import { VersionsSidebar } from "./versions-sidebar"
-import { apiRequest } from "@/app/lib/api"
 
 export function IdeaIncubatorClient() {
   const [ideas, setIdeas] = useState<IdeaRecord[]>([])
@@ -27,7 +30,11 @@ export function IdeaIncubatorClient() {
   const [isLoading, setIsLoading] = useState(false)
   const [formError, setFormError] = useState("")
   const [error, setError] = useState("")
+  const [chatError, setChatError] = useState("")
+  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [refinementMessage, setRefinementMessage] = useState("")
   const [copyState, setCopyState] = useState<"idle" | "copied">("idle")
+  const [exportState, setExportState] = useState<"idle" | "copied" | "downloaded">("idle")
 
   const handleInputChange = (
     setter: Dispatch<SetStateAction<string>>,
@@ -39,6 +46,9 @@ export function IdeaIncubatorClient() {
     }
     if (error) {
       setError("")
+    }
+    if (chatError) {
+      setChatError("")
     }
   }
 
@@ -59,21 +69,31 @@ export function IdeaIncubatorClient() {
       : []
   }
 
+  const loadMessages = async (ideaId: number) => {
+    const data = await apiRequest<ChatMessage[]>(`/ideas/${ideaId}/messages`)
+    return Array.isArray(data) ? data : []
+  }
+
   const selectIdea = async (idea: IdeaRecord) => {
     try {
       setIsLoading(true)
       setError("")
       setFormError("")
+      setChatError("")
       setCopyState("idle")
+      setExportState("idle")
+      setRefinementMessage("")
 
       const loadedIdea = await loadIdea(idea.id)
       const loadedVersions = await loadVersions(idea.id)
+      const loadedMessages = await loadMessages(idea.id)
 
       setCurrentIdeaId(loadedIdea.id)
       setTitle(loadedIdea.title)
       setDescription(loadedIdea.raw_description)
       setVersions(loadedVersions)
       setCurrentVersion(loadedVersions[0] ?? null)
+      setMessages(loadedMessages)
     } catch (requestError) {
       setError(
         requestError instanceof Error
@@ -93,7 +113,11 @@ export function IdeaIncubatorClient() {
     setDescription("")
     setFormError("")
     setError("")
+    setChatError("")
+    setMessages([])
+    setRefinementMessage("")
     setCopyState("idle")
+    setExportState("idle")
   }
 
   useEffect(() => {
@@ -118,12 +142,14 @@ export function IdeaIncubatorClient() {
           setDescription(newestIdea.raw_description)
 
           const loadedVersions = await loadVersions(newestIdea.id)
+          const loadedMessages = await loadMessages(newestIdea.id)
           if (ignore) {
             return
           }
 
           setVersions(loadedVersions)
           setCurrentVersion(loadedVersions[0] ?? null)
+          setMessages(loadedMessages)
         }
       } catch (requestError) {
         if (!ignore) {
@@ -160,7 +186,9 @@ export function IdeaIncubatorClient() {
 
     setFormError("")
     setError("")
+    setChatError("")
     setCopyState("idle")
+    setExportState("idle")
 
     try {
       setIsLoading(true)
@@ -204,12 +232,14 @@ export function IdeaIncubatorClient() {
       )
 
       const loadedVersions = await loadVersions(activeIdea.id)
+      const loadedMessages = await loadMessages(activeIdea.id)
 
       setVersions(loadedVersions)
       setCurrentVersion(
         loadedVersions.find((version) => version.id === createdVersion.id) ??
           mapApiVersion(createdVersion)
       )
+      setMessages(loadedMessages)
     } catch (requestError) {
       setError(
         requestError instanceof Error
@@ -233,6 +263,65 @@ export function IdeaIncubatorClient() {
     await requestGeneration()
   }
 
+  const handleRefinementChange = (value: string) => {
+    setRefinementMessage(value)
+    if (chatError) {
+      setChatError("")
+    }
+    if (error) {
+      setError("")
+    }
+  }
+
+  const submitRefinement = async (message: string) => {
+    if (isLoading || !currentIdeaId) {
+      return
+    }
+
+    const trimmedMessage = message.trim()
+    if (!trimmedMessage) {
+      setChatError("Enter a refinement instruction first.")
+      return
+    }
+
+    try {
+      setIsLoading(true)
+      setChatError("")
+      setError("")
+      setCopyState("idle")
+      setExportState("idle")
+
+      const createdVersion = await apiRequest<ApiIdeaVersion>(`/ideas/${currentIdeaId}/refine`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ message: trimmedMessage }),
+      })
+
+      const [loadedVersions, loadedMessages] = await Promise.all([
+        loadVersions(currentIdeaId),
+        loadMessages(currentIdeaId),
+      ])
+
+      setVersions(loadedVersions)
+      setCurrentVersion(
+        loadedVersions.find((version) => version.id === createdVersion.id) ??
+          mapApiVersion(createdVersion)
+      )
+      setMessages(loadedMessages)
+      setRefinementMessage("")
+    } catch (requestError) {
+      setChatError(
+        requestError instanceof Error
+          ? requestError.message
+          : "Something went wrong while refining the idea."
+      )
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   const handleCopyOverview = async () => {
     if (!currentVersion?.overview) {
       return
@@ -247,6 +336,92 @@ export function IdeaIncubatorClient() {
     } catch {
       setError("Copy failed.")
     }
+  }
+
+  const buildPlanText = () => {
+    if (!currentVersion) {
+      return ""
+    }
+
+    const lines = [
+      "Idea Incubator Plan",
+      `Overview: ${currentVersion.overview ?? "No data generated."}`,
+      `Audience: ${currentVersion.audience ?? "No data generated."}`,
+      `Problem: ${currentVersion.problem ?? "No data generated."}`,
+      `Solution: ${currentVersion.solution ?? "No data generated."}`,
+      `MVP Scope: ${currentVersion.mvp_scope ?? "No data generated."}`,
+      "",
+      "Features:",
+      ...(currentVersion.features?.length
+        ? currentVersion.features.map(
+            (feature) => `- ${feature.name || "Untitled feature"}: ${feature.description || "No data generated."}`
+          )
+        : ["- No data generated."]),
+      "",
+      "Risks:",
+      ...(currentVersion.risks?.length
+        ? currentVersion.risks.map(
+            (risk) => `- ${risk.type || "Unspecified risk"}: ${risk.description || "No data generated."}`
+          )
+        : ["- No data generated."]),
+      "",
+      "Roadmap:",
+      ...(currentVersion.roadmap?.length
+        ? currentVersion.roadmap.map(
+            (item) => `- Week ${item.week ?? "?"}: ${item.goal || "No data generated."}`
+          )
+        : ["- No data generated."]),
+    ]
+
+    return lines.join("\n")
+  }
+
+  const triggerDownload = (content: string, filename: string, type: string) => {
+    const blob = new Blob([content], { type })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.download = filename
+    link.click()
+    URL.revokeObjectURL(url)
+    setExportState("downloaded")
+    window.setTimeout(() => setExportState("idle"), 2000)
+  }
+
+  const handleCopyFullPlan = async () => {
+    const content = buildPlanText()
+    if (!content) {
+      return
+    }
+
+    try {
+      await navigator.clipboard.writeText(content)
+      setExportState("copied")
+      window.setTimeout(() => setExportState("idle"), 2000)
+    } catch {
+      setError("Copy failed.")
+    }
+  }
+
+  const handleDownloadText = () => {
+    const content = buildPlanText()
+    if (!content) {
+      return
+    }
+
+    triggerDownload(content, `idea-version-${currentVersion?.id ?? "current"}.txt`, "text/plain")
+  }
+
+  const handleDownloadJson = () => {
+    if (!currentVersion) {
+      return
+    }
+
+    triggerDownload(
+      JSON.stringify(currentVersion, null, 2),
+      `idea-version-${currentVersion.id}.json`,
+      "application/json"
+    )
   }
 
   const deleteVersion = async (id: number) => {
@@ -311,10 +486,28 @@ export function IdeaIncubatorClient() {
             <ResultPanel
               activeTab={activeTab}
               copyState={copyState}
+              exportState={exportState}
               currentVersion={currentVersion}
               tabs={tabs}
+              onCopyFullPlan={handleCopyFullPlan}
               onCopyOverview={handleCopyOverview}
+              onDownloadJson={handleDownloadJson}
+              onDownloadText={handleDownloadText}
               onTabChange={setActiveTab}
+            />
+
+            <ChatPanel
+              error={chatError}
+              isLoading={isLoading}
+              messages={messages}
+              refinementMessage={refinementMessage}
+              onQuickAction={(message) => {
+                void submitRefinement(message)
+              }}
+              onRefinementChange={handleRefinementChange}
+              onSend={() => {
+                void submitRefinement(refinementMessage)
+              }}
             />
           </section>
 
