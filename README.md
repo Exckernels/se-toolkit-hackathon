@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Idea Incubator
 
 Idea Incubator is a full-stack demo with:
@@ -78,3 +79,6 @@ pip install -r requirements.txt
 python init_db.py
 uvicorn main:app --reload --port 8000
 ```
+=======
+# Idea-Incubator
+>>>>>>> 95db740d645e75afc10986b4646030b624509661
