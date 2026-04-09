@@ -11,7 +11,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY app ./app
 COPY public ./public
 COPY package.json package-lock.json ./
-COPY next.config.ts postcss.config.mjs eslint.config.mjs tsconfig.json next-env.d.ts ./
+COPY next.config.ts postcss.config.mjs eslint.config.mjs tsconfig.json ./
 RUN npm run build
 
 FROM node:20-alpine AS runner

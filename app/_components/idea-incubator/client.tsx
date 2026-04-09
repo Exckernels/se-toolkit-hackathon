@@ -36,6 +36,43 @@ export function IdeaIncubatorClient() {
   const [copyState, setCopyState] = useState<"idle" | "copied">("idle")
   const [exportState, setExportState] = useState<"idle" | "copied" | "downloaded">("idle")
 
+  const fallbackCopyText = (text: string) => {
+    if (typeof document === "undefined") {
+      return false
+    }
+
+    const textArea = document.createElement("textarea")
+    textArea.value = text
+    textArea.setAttribute("readonly", "")
+    textArea.style.position = "fixed"
+    textArea.style.top = "-9999px"
+    textArea.style.left = "-9999px"
+    document.body.appendChild(textArea)
+    textArea.select()
+    textArea.setSelectionRange(0, textArea.value.length)
+
+    try {
+      return document.execCommand("copy")
+    } catch {
+      return false
+    } finally {
+      document.body.removeChild(textArea)
+    }
+  }
+
+  const copyTextToClipboard = async (text: string) => {
+    if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(text)
+        return true
+      } catch {
+        // Fall back to legacy copy support if Clipboard API fails.
+      }
+    }
+
+    return fallbackCopyText(text)
+  }
+
   const handleInputChange = (
     setter: Dispatch<SetStateAction<string>>,
     value: string
@@ -327,14 +364,20 @@ export function IdeaIncubatorClient() {
       return
     }
 
+    setError("")
     try {
-      await navigator.clipboard.writeText(currentVersion.overview)
+      const copied = await copyTextToClipboard(currentVersion.overview)
+      if (!copied) {
+        setError("Could not copy overview. Try selecting and copying manually.")
+        return
+      }
+
       setCopyState("copied")
       window.setTimeout(() => {
         setCopyState("idle")
       }, 2000)
     } catch {
-      setError("Copy failed.")
+      setError("Could not copy overview. Try selecting and copying manually.")
     }
   }
 
@@ -394,12 +437,18 @@ export function IdeaIncubatorClient() {
       return
     }
 
+    setError("")
     try {
-      await navigator.clipboard.writeText(content)
+      const copied = await copyTextToClipboard(content)
+      if (!copied) {
+        setError("Could not copy full plan. Try downloading the text export.")
+        return
+      }
+
       setExportState("copied")
       window.setTimeout(() => setExportState("idle"), 2000)
     } catch {
-      setError("Copy failed.")
+      setError("Could not copy full plan. Try downloading the text export.")
     }
   }
 
@@ -448,6 +497,65 @@ export function IdeaIncubatorClient() {
     }
   }
 
+  const deleteIdea = async () => {
+    if (isLoading || !currentIdeaId) {
+      return
+    }
+
+    const currentIdea = ideas.find((idea) => idea.id === currentIdeaId)
+    const ideaName = currentIdea?.title?.trim() || "this idea"
+    const confirmed = window.confirm(
+      `Delete "${ideaName}" and all of its versions and refinement history?`
+    )
+    if (!confirmed) {
+      return
+    }
+
+    try {
+      setIsLoading(true)
+      setError("")
+      setFormError("")
+      setChatError("")
+
+      await apiRequest<{ id: number; message: string }>(`/ideas/${currentIdeaId}`, {
+        method: "DELETE",
+      })
+
+      const remainingIdeas = ideas.filter((idea) => idea.id !== currentIdeaId)
+      setIdeas(remainingIdeas)
+
+      if (remainingIdeas.length === 0) {
+        resetForNewIdea()
+        return
+      }
+
+      const nextIdea = remainingIdeas[0]
+      const loadedIdea = await loadIdea(nextIdea.id)
+      const [loadedVersions, loadedMessages] = await Promise.all([
+        loadVersions(nextIdea.id),
+        loadMessages(nextIdea.id),
+      ])
+
+      setCurrentIdeaId(loadedIdea.id)
+      setTitle(loadedIdea.title)
+      setDescription(loadedIdea.raw_description)
+      setVersions(loadedVersions)
+      setCurrentVersion(loadedVersions[0] ?? null)
+      setMessages(loadedMessages)
+      setRefinementMessage("")
+      setCopyState("idle")
+      setExportState("idle")
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : "Something went wrong while deleting the idea."
+      )
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   return (
     <main className="min-h-screen bg-zinc-950 p-8 text-white">
       <div className="mx-auto max-w-7xl">
@@ -464,6 +572,9 @@ export function IdeaIncubatorClient() {
               currentIdeaId={currentIdeaId}
               ideas={ideas}
               isLoading={isLoading}
+              onDeleteIdea={() => {
+                void deleteIdea()
+              }}
               onNewIdea={handleCreateFreshIdea}
               onSelectIdea={(idea) => {
                 void selectIdea(idea)

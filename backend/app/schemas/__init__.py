@@ -1,4 +1,5 @@
 from app.schemas.idea import (
+    DeleteIdeaResponse,
     DeleteVersionResponse,
     IdeaChatMessageRead,
     IdeaCreate,
@@ -9,6 +10,7 @@ from app.schemas.idea import (
 from app.schemas.generate import GenerateRequest
 
 __all__ = [
+    "DeleteIdeaResponse",
     "DeleteVersionResponse",
     "GenerateRequest",
     "IdeaChatMessageRead",

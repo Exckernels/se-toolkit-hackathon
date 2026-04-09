@@ -4,6 +4,7 @@ type IdeaSelectorProps = {
   currentIdeaId: number | null
   ideas: IdeaRecord[]
   isLoading: boolean
+  onDeleteIdea: () => void
   onNewIdea: () => void
   onSelectIdea: (idea: IdeaRecord) => void
 }
@@ -12,6 +13,7 @@ export function IdeaSelector({
   currentIdeaId,
   ideas,
   isLoading,
+  onDeleteIdea,
   onNewIdea,
   onSelectIdea
 }: IdeaSelectorProps) {
@@ -25,14 +27,24 @@ export function IdeaSelector({
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={onNewIdea}
-          disabled={isLoading}
-          className="rounded-lg border border-zinc-700 px-3 py-2 text-sm text-zinc-100 transition-colors hover:border-zinc-500 disabled:cursor-not-allowed disabled:opacity-70"
-        >
-          New Idea
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onDeleteIdea}
+            disabled={isLoading || !currentIdeaId}
+            className="rounded-lg border border-red-900 px-3 py-2 text-sm text-red-300 transition-colors hover:border-red-700 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            Delete Idea
+          </button>
+          <button
+            type="button"
+            onClick={onNewIdea}
+            disabled={isLoading}
+            className="rounded-lg border border-zinc-700 px-3 py-2 text-sm text-zinc-100 transition-colors hover:border-zinc-500 disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            New Idea
+          </button>
+        </div>
       </div>
 
       {ideas.length === 0 ? (

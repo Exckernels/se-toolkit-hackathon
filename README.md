@@ -1,95 +1,100 @@
-<<<<<<< HEAD
 # Idea Incubator
 
-Idea Incubator is a full-stack demo with:
+A web application that transforms raw ideas into structured MVP plans with iterative AI refinement.
 
-- A Next.js frontend for creating and refining ideas into structured MVP plans
-- A FastAPI backend for idea CRUD, version generation, and OpenRouter integration
-- PostgreSQL for storing ideas and generated versions
+---
 
-## Project Structure
+## Demo
 
-- `app/`: Next.js App Router entrypoint and colocated UI components
-- `backend/app/`: FastAPI app split into routers, models, schemas, db, and services
-- `docker-compose.yml`: local multi-service stack for frontend, backend, and Postgres
+<!-- Add screenshots here -->
+<!-- Example: -->
+<!-- ![Main Screen](./screenshots/main.png) -->
+<!-- ![Generated Plan](./screenshots/plan.png) -->
 
-## Environment Setup
+---
 
-1. Copy `.env.example` to `.env`
-2. Fill in `OPENROUTER_API_KEY`
-3. Adjust the other values only if needed
+## Product Context
 
-Example:
+### End Users
+- Students
+- Early-stage founders
+- Hackathon participants
 
-```env
-POSTGRES_DB=idea_incubator
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=postgres
-DATABASE_URL=postgresql+psycopg://postgres:postgres@postgres:5432/idea_incubator
-OPENROUTER_API_KEY=your-openrouter-api-key
-NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
-CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
-```
+### Problem
+Many users struggle to convert raw, vague ideas into clear and structured MVP plans. Existing tools generate outputs but do not support iterative refinement or version tracking.
 
-## Run With Docker Compose
+### Solution
+Idea Incubator provides a structured workflow where users:
+- input raw ideas
+- generate structured MVP plans
+- refine them through an AI back-and-forth loop
+- track versions of improvements
 
-From the project root:
+---
+
+## Features
+
+### Implemented
+- Idea creation from raw input
+- Structured MVP output:
+  - Overview
+  - Audience
+  - Problem
+  - Solution
+  - Features
+  - MVP Scope
+  - Risks
+  - Roadmap
+- Version history per idea
+- AI refinement loop (chat-based iteration)
+- Delete idea and delete version
+- Export functionality (text / JSON)
+- Full-stack architecture (Next.js + FastAPI)
+- Dockerized deployment
+- VM deployment support
+
+### Not Yet Implemented
+- User authentication (user-specific ideas)
+- Collaborative editing
+- Advanced export (PDF generation)
+- Analytics / usage tracking
+
+---
+
+## Usage
+
+1. Open the application
+2. Enter:
+   - Idea title
+   - Description of your idea
+3. Click **Generate**
+4. Review the structured MVP plan
+5. Use refinement:
+   - buttons (Simplify, Focus on MVP, etc.)
+   - or custom input
+6. Each refinement creates a new version
+7. Switch between versions in the sidebar
+8. Export or copy the result
+9. Delete ideas or versions if needed
+
+---
+
+## Deployment
+
+### Target Environment
+- OS: **Ubuntu 24.04**
+- Recommended:
+  - Docker
+  - Docker Compose
+
+---
+
+### Requirements
+
+Install Docker:
 
 ```bash
-docker compose up --build
-```
-
-This starts:
-
-- Frontend: [http://localhost:3000](http://localhost:3000)
-- Backend: [http://localhost:8000](http://localhost:8000)
-- Postgres: `localhost:5432`
-
-For VM deployment with Caddy, use:
-
-```bash
-docker compose up -d --build
-```
-
-Expected URLs on the VM:
-
-- Frontend: [http://10.93.26.122](http://10.93.26.122)
-- API docs: [http://10.93.26.122/api/docs](http://10.93.26.122/api/docs)
-
-The backend container runs `python init_db.py` on startup, uses SQLite at `/app/data/idea_incubator.db`, and stores it via the mounted host folder `./backend/data`.
-
-## Test The Stack
-
-1. Open [http://localhost:3000](http://localhost:3000)
-2. Enter an idea title and description
-3. Click `Generate`
-4. Confirm a new idea is created, a version is generated, and the versions sidebar updates
-5. Click `Refine` to create another version
-6. Click `Delete` on a version card to remove it
-
-You can also inspect the backend directly:
-
-- `GET http://localhost:8000/ideas`
-- `GET http://localhost:8000/ideas/{id}`
-- `GET http://localhost:8000/ideas/{id}/versions`
-
-## Local Non-Docker Development
-
-Frontend:
-
-```bash
-npm install
-npm run dev
-```
-
-Backend:
-
-```bash
-cd backend
-pip install -r requirements.txt
-python init_db.py
-uvicorn main:app --reload --port 8000
-```
-=======
-# Idea-Incubator
->>>>>>> 95db740d645e75afc10986b4646030b624509661
+sudo apt update
+sudo apt install -y docker.io docker-compose
+sudo systemctl start docker
+sudo systemctl enable docker

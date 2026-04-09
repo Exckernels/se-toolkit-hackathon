@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models import Idea, IdeaChatMessage, IdeaVersion
 from app.schemas import (
+    DeleteIdeaResponse,
     DeleteVersionResponse,
     IdeaChatMessageRead,
     IdeaCreate,
@@ -45,6 +46,17 @@ def get_idea(id: int, db: Session = Depends(get_db)) -> Idea:
     if not idea:
         raise HTTPException(status_code=404, detail="Idea not found")
     return idea
+
+
+@router.delete("/ideas/{id}", response_model=DeleteIdeaResponse)
+def delete_idea(id: int, db: Session = Depends(get_db)) -> DeleteIdeaResponse:
+    idea = db.get(Idea, id)
+    if not idea:
+        raise HTTPException(status_code=404, detail="Idea not found")
+
+    db.delete(idea)
+    db.commit()
+    return DeleteIdeaResponse(id=id, message="Idea deleted")
 
 
 @router.get("/ideas/{id}/versions", response_model=list[IdeaVersionRead])

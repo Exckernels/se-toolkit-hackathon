@@ -40,6 +40,11 @@ class DeleteVersionResponse(BaseModel):
     message: str
 
 
+class DeleteIdeaResponse(BaseModel):
+    id: int
+    message: str
+
+
 class IdeaRefineRequest(BaseModel):
     message: str
 
