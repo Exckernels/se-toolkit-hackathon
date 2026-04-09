@@ -3,13 +3,8 @@
 A web application that transforms raw ideas into structured MVP plans with iterative AI refinement.
 
 ---
-
 ## Demo
-
-<!-- Add screenshots here -->
-<!-- Example: -->
-<!-- ![Main Screen](./screenshots/main.png) -->
-<!-- ![Generated Plan](./screenshots/plan.png) -->
+ ![Main Screen](https://github.com/user-attachments/assets/f14a3ea8-2c67-4fbd-be37-d2f9a1d91f4a) 
 
 ---
 
