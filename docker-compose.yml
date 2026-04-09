@@ -1,47 +1,37 @@
 services:
-  postgres:
-    image: postgres:16-alpine
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-/api}
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-idea_incubator}
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-idea_incubator}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-/api}
+    expose:
+      - "3000"
 
   backend:
     build:
       context: ./backend
+      dockerfile: Dockerfile
     restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://postgres:postgres@postgres:5432/idea_incubator}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
-    ports:
-      - "8000:8000"
+      DATABASE_URL: ${DATABASE_URL:-sqlite:///./data/idea_incubator.db}
+      ROOT_PATH: ${ROOT_PATH:-/api}
+    volumes:
+      - ./backend/data:/app/data
+    expose:
+      - "8000"
 
-  frontend:
-    build:
-      context: .
-      args:
-        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000}
+  caddy:
+    image: caddy:2-alpine
     restart: unless-stopped
     depends_on:
+      - frontend
       - backend
-    environment:
-      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000}
     ports:
-      - "3000:3000"
-
-volumes:
-  postgres_data:
+      - "80:80"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro

@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -5,7 +7,7 @@ from app.db import init_db
 from app.routers.generate import router as generate_router
 from app.routers.ideas import router as ideas_router
 
-app = FastAPI(title="Idea Incubator Backend")
+app = FastAPI(title="Idea Incubator Backend", root_path=os.getenv("ROOT_PATH", ""))
 
 app.add_middleware(
     CORSMiddleware,

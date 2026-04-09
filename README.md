@@ -45,7 +45,18 @@ This starts:
 - Backend: [http://localhost:8000](http://localhost:8000)
 - Postgres: `localhost:5432`
 
-The backend container runs `python init_db.py` on startup, so the database tables are created automatically.
+For VM deployment with Caddy, use:
+
+```bash
+docker compose up -d --build
+```
+
+Expected URLs on the VM:
+
+- Frontend: [http://10.93.26.122](http://10.93.26.122)
+- API docs: [http://10.93.26.122/api/docs](http://10.93.26.122/api/docs)
+
+The backend container runs `python init_db.py` on startup, uses SQLite at `/app/data/idea_incubator.db`, and stores it via the mounted host folder `./backend/data`.
 
 ## Test The Stack
 
